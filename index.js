@@ -1,5 +1,6 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const P = require('pino');
+const qrcode = require('qrcode-terminal'); // ← Agregado
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
@@ -11,13 +12,11 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // ⚠️ Escuchar manualmente el QR
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
+    // Muestra el QR en terminal de forma escaneable
+    sock.ev.on('connection.update', ({ connection, qr, lastDisconnect }) => {
         if (qr) {
-            console.log('\n📱 Escanea este QR con WhatsApp:\n');
-            console.log(qr);
+            console.log('📱 Escanea este código QR con WhatsApp:\n');
+            qrcode.generate(qr, { small: true }); // ← Aquí sí se muestra visualmente
         }
 
         if (connection === 'close') {
@@ -27,7 +26,7 @@ async function startBot() {
                 startBot();
             }
         } else if (connection === 'open') {
-            console.log('✅ Conectado exitosamente a WhatsApp');
+            console.log('✅ Bot conectado a WhatsApp');
         }
     });
 
@@ -35,7 +34,7 @@ async function startBot() {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
         if (text.toLowerCase() === 'hola') {
             await sock.sendMessage(msg.key.remoteJid, { text: '¡Hola! Soy tu bot 🤖' });
@@ -44,4 +43,3 @@ async function startBot() {
 }
 
 startBot();
-
