@@ -1,6 +1,5 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const P = require('pino');
-const qrcode = require('qrcode-terminal'); // ← Agregado
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
@@ -12,19 +11,17 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // Muestra el QR en terminal de forma escaneable
     sock.ev.on('connection.update', ({ connection, qr, lastDisconnect }) => {
         if (qr) {
-            console.log('📱 Escanea este código QR con WhatsApp:\n');
-            qrcode.generate(qr, { small: true }); // ← Aquí sí se muestra visualmente
+            const qrLink = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qr)}&size=300x300`;
+            console.log('📱 Escanea este código QR con WhatsApp en este link:');
+            console.log(qrLink); // ✅ QR visible desde logs en Railway
         }
 
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
             console.log('❌ Conexión cerrada. Reintentando:', shouldReconnect);
-            if (shouldReconnect) {
-                startBot();
-            }
+            if (shouldReconnect) startBot();
         } else if (connection === 'open') {
             console.log('✅ Bot conectado a WhatsApp');
         }
