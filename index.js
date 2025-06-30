@@ -1,16 +1,16 @@
-const { default: makeWASocket, useSingleFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const P = require('pino');
 
-const { state, saveState } = useSingleFileAuthState('./auth_info.json');
-
 async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('./auth');
+
     const sock = makeWASocket({
         auth: state,
         logger: P({ level: 'silent' }),
         printQRInTerminal: true,
     });
 
-    sock.ev.on('creds.update', saveState);
+    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
@@ -25,3 +25,4 @@ async function startBot() {
 }
 
 startBot();
+
