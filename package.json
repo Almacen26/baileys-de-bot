@@ -1,5 +1,5 @@
 {
-  "name": "baileys-de-bot",
+  "name": "baileys-bot",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,8 +9,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^latest",
+    "@whiskeysockets/baileys": "^6.6.0",
     "pino": "^8.0.0"
   }
 }
-
