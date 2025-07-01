@@ -1,16 +1,14 @@
 {
-  "name": "baileys-bot",
+  "name": "baileys-de-bot",
   "version": "1.0.0",
+  "description": "Bot de WhatsApp con Baileys y API REST",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "inicio": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.6.0",
-    "pino": "^8.0.0",
-    "qrcode-terminal": "^0.12.0"
+    "@whiskeysockets/baileys": "^6.7.0",
+    "express": "^4.18.4",
+    "pino": "^8.14.1"
   }
 }
