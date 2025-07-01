@@ -1,6 +1,8 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const P = require('pino');
 
+let sockGlobal = null; // ← Usaremos esto para exportar el socket
+
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
@@ -9,13 +11,15 @@ async function startBot() {
         logger: P({ level: 'silent' }),
     });
 
+    sockGlobal = sock; // ← Guardamos el socket global
+
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', ({ connection, qr, lastDisconnect }) => {
         if (qr) {
             const qrLink = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qr)}&size=300x300`;
             console.log('📱 Escanea este código QR con WhatsApp en este link:');
-            console.log(qrLink); // ✅ QR visible desde logs en Railway
+            console.log(qrLink);
         }
 
         if (connection === 'close') {
@@ -40,3 +44,6 @@ async function startBot() {
 }
 
 startBot();
+
+// Exportamos una función para acceder al socket desde otros archivos
+module.exports = () => sockGlobal;
