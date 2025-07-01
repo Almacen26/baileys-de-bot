@@ -1,0 +1,126 @@
+<?php 
+require('conexion.php');
+require 'vendor/autoload.php';
+use Mailjet\Client;
+use Mailjet\Resources;
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $origen = $_POST['origen'] ?? 'otro'; // 🆕 leer el origen
+
+    $nombre_empleado = $_POST['nombre_empleado'] ?? '';
+    $apellido = $_POST['apellido'] ?? '';
+    $direccion = $_POST['direccion'] ?? '';
+    $nombre_obra = $_POST['nombre_obra'] ?? '';
+    $area = $_POST['area'] ?? '';
+    $comentario = $_POST['comentario'] ?? '';
+
+    // 🆕 Adaptar lectura de artículos
+    if ($origen === 'tienda') {
+        $articulos_data = json_decode($_POST['articulos_json'] ?? '[]', true);
+        $articulos = [];
+        $cantidades = [];
+
+        foreach ($articulos_data as $item) {
+            $articulos[] = $item['id'];
+            $cantidades[] = $item['cantidad'];
+        }
+
+        // Puedes usar una sesión de usuario para nombre_empleado si no viene por POST
+        session_start();
+        $usuario_id = $_SESSION['usuario_id'] ?? null;
+        if ($usuario_id) {
+            $query = $conn->prepare("SELECT nombre FROM usuario_empleado WHERE id = ?");
+            $query->bind_param("i", $usuario_id);
+            $query->execute();
+            $res = $query->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $nombre_empleado = $row['nombre'];
+            }
+        }
+    } else {
+        $articulos = $_POST['articulos'] ?? [];
+        $cantidades = $_POST['cantidades'] ?? [];
+    }
+
+    // Crear folio, fecha, y número de pedido
+    $folio = uniqid("PED-");
+    $fecha = date('Y-m-d H:i:s');
+
+    $sql_numero_pedido = "SELECT MAX(numero_pedido) AS ultimo_numero FROM pedidos";
+    $result_numero = $conn->query($sql_numero_pedido);
+    $ultimo_numero = $result_numero->fetch_assoc();
+    $numero_pedido = $ultimo_numero['ultimo_numero'] + 1;
+
+    // Guardar pedido
+    $sql_pedido = "INSERT INTO pedidos (nombre_empleado, apellido, direccion, nombre_obra, area, folio, fecha, numero_pedido, comentario) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql_pedido);
+    $stmt->bind_param("sssssssis", $nombre_empleado, $apellido, $direccion, $nombre_obra, $area, $folio, $fecha, $numero_pedido, $comentario);
+    $stmt->execute();
+    $pedido_id = $stmt->insert_id;
+
+    // Guardar detalles del pedido
+    foreach ($articulos as $index => $id_articulo) {
+        $cantidad = (int)$cantidades[$index];
+
+        $sql_articulo = "SELECT nombre, cantidad FROM articulos WHERE id = ?";
+        $stmt = $conn->prepare($sql_articulo);
+        $stmt->bind_param("i", $id_articulo);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $articulo = $result->fetch_assoc();
+
+        $nuevo_stock = $articulo['cantidad'] - $cantidad;
+        $estado_stock = ($nuevo_stock < 0) ? "Stock Insuficiente" : "Disponible";
+
+        if ($nuevo_stock >= 0) {
+            $sql_update = "UPDATE articulos SET cantidad = ? WHERE id = ?";
+            $stmt = $conn->prepare($sql_update);
+            $stmt->bind_param("ii", $nuevo_stock, $id_articulo);
+            $stmt->execute();
+        }
+
+        $sql_detalle = "INSERT INTO detalles_pedido (pedido_id, articulo_id, cantidad_solicitada, estado_stock) 
+                        VALUES (?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql_detalle);
+        $stmt->bind_param("iiis", $pedido_id, $id_articulo, $cantidad, $estado_stock);
+        $stmt->execute();
+    }
+
+    // PDF
+    $pdf_path = "reportes/pedido_$pedido_id.pdf";
+    file_put_contents($pdf_path, file_get_contents("http://localhost/sistema_almacen.php/generar_reporte_pdf.php?pedido_id=$pedido_id"));
+
+    // Email
+    $mj = new Client('API_KEY', 'API_SECRET', true, ['version' => 'v3.1']);
+    $body = [
+        'Messages' => [[
+            'From' => ['Email' => "padroncristofer25@gmail.com", 'Name' => "Sistema de Pedidos"],
+            'To' => [
+                ['Email' => "cristoferpadron11@gmail.com", 'Name' => "Usuario"],
+                ['Email' => "montiel1973@gmail.com", 'Name' => "Usuario Secundario"],
+                ['Email' => "Josegerardoalejandrog@gmail.com", 'Name' => "Usuario Terceso"],
+                ['Email' => "calidadontimeservices@gmail.com", 'Name' => "Usuario Cuarto"]
+            ],
+            'Subject' => "📦 Nuevo Pedido Generado",
+            'HTMLPart' => '
+<div style="font-family: Arial; background:#f4f6f9; padding:30px;">
+    <h2 style="color:#004aad;">📄 Nuevo Pedido</h2>
+    <p><strong>Empleado:</strong> ' . $nombre_empleado . ' ' . $apellido . '</p>
+    <p><strong>Obra:</strong> ' . $nombre_obra . '</p>
+    <p><strong>Área:</strong> ' . $area . '</p>
+    <p><strong>Número de Pedido:</strong> ' . $numero_pedido . '</p>
+    <p><strong>Fecha:</strong> ' . $fecha . '</p>
+    <p><strong>Comentario:</strong><br>' . nl2br($comentario) . '</p>
+    <p><a href="https://tusistema.com/ver_pedido.php?pedido_id=' . $pedido_id . '" style="background:#004aad;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;">Ver Pedido</a></p>
+</div>'
+        ]]
+    ];
+    $response = $mj->post(Resources::$Email, ['body' => $body]);
+
+    header("Location: generar_reporte_pdf.php?pedido_id=$pedido_id");
+    exit();
+} else {
+    echo "Error en la solicitud.";
+}
+?>
