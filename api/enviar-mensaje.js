@@ -12,7 +12,9 @@ function iniciarAPI() {
     app.post('/enviar', async (req, res) => {
         const { numero, mensaje } = req.body;
 
-        console.log('📨 Petición recibida:', numero, mensaje);
+        console.log('📨 Petición recibida en /enviar');
+        console.log('👉 Número:', numero);
+        console.log('👉 Mensaje:', mensaje);
 
         if (!sockGlobal) {
             console.log("❌ Bot aún no está conectado.");
