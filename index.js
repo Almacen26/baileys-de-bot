@@ -4,7 +4,6 @@ const { iniciarAPI, setSocket } = require('./api/enviar-mensaje');
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth');
-
     const sock = makeWASocket({ auth: state, logger: P({ level: 'silent' }) });
 
     sock.ev.on('creds.update', saveCreds);
@@ -19,6 +18,11 @@ async function startBot() {
         if (connection === 'open') {
             console.log('✅ Bot conectado a WhatsApp');
         }
+
+        if (connection === 'close') {
+            console.log('❌ Conexión cerrada. Intentando reconectar...');
+            startBot(); // reconectar automáticamente
+        }
     });
 
     sock.ev.on('messages.upsert', async ({ messages }) => {
@@ -31,8 +35,8 @@ async function startBot() {
         }
     });
 
-    setSocket(sock);
+    setSocket(sock); // pasar socket a la API
 }
 
 startBot();
-iniciarAPI();
+iniciarAPI(); // iniciar servidor Express para recibir peticiones HTTP
