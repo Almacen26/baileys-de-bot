@@ -9,13 +9,6 @@ function setSocket(sock) {
 }
 
 function iniciarAPI() {
-    // 🧠 Mapeo manual de número → JID real
-    const numeroToJID = {
-        '524151691629': '5214151691629@s.whatsapp.net',
-        '524151070688': '5214151070688@s.whatsapp.net',
-        // Agrega más si necesitas
-    };
-
     app.post('/enviar', async (req, res) => {
         const { numero, mensaje } = req.body;
 
@@ -29,17 +22,18 @@ function iniciarAPI() {
         }
 
         try {
-            // 🔁 Usa el JID real si está mapeado, si no lo arma con @s.whatsapp.net
-            const jid = numeroToJID[numero] || `${numero}@s.whatsapp.net`;
+            const jid = `${numero}@s.whatsapp.net`;
 
+            // ✅ Verificar si el número existe en WhatsApp
             const [result] = await sockGlobal.onWhatsApp(jid);
             if (!result?.exists) {
-                console.log(`⚠️ El número ${numero} no está disponible o no ha iniciado chat con el bot.`);
+                console.log(`⚠️ El número ${numero} no existe en WhatsApp o no ha iniciado chat con el bot.`);
                 return res.status(400).send(`⚠️ El número ${numero} no está disponible.`);
             }
 
+            // ✅ Enviar mensaje
             await sockGlobal.sendMessage(jid, { text: mensaje });
-            console.log(`✅ Mensaje enviado a ${jid}`);
+            console.log(`✅ Mensaje enviado a ${numero}`);
             res.send('✅ Mensaje enviado.');
         } catch (error) {
             console.error('❌ Error al enviar mensaje:', error);
