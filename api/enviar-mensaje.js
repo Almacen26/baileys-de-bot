@@ -24,10 +24,18 @@ function iniciarAPI() {
         try {
             const jid = `${numero}@s.whatsapp.net`;
 
-            // ✅ Verificar si el número existe en WhatsApp
-            const [result] = await sockGlobal.onWhatsApp(jid);
-            if (!result?.exists) {
-                console.log(`⚠️ El número ${numero} no existe en WhatsApp o no ha iniciado chat con el bot.`);
+            // ✅ Verificación controlada de existencia
+            let exists = true;
+            try {
+                const [result] = await sockGlobal.onWhatsApp(jid);
+                exists = result?.exists ?? false;
+            } catch (err) {
+                console.warn('⚠️ Timeout o fallo en onWhatsApp, se continúa sin validar.');
+                exists = true; // puedes ponerlo en false si quieres bloquearlo
+            }
+
+            if (!exists) {
+                console.log(`⚠️ El número ${numero} no existe o no ha iniciado conversación con el bot.`);
                 return res.status(400).send(`⚠️ El número ${numero} no está disponible.`);
             }
 
